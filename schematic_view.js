@@ -39,14 +39,24 @@ jade_defs.schematic_view = function(jade) {
         this.hierarchy_stack = []; // remember path when traveling up/down hierarchy
 
         // register event handlers
-        $(this.diagram.canvas)
-            .mousemove(schematic_mouse_move)
-            .mouseover(schematic_mouse_enter)
-            .mouseout(schematic_mouse_leave)
-            .mouseup(schematic_mouse_up)
-            .mousedown(schematic_mouse_down)
-            .dblclick(schematic_double_click)
-            .keydown(schematic_key_down);
+        // $(this.diagram.canvas)
+        //     .mousemove(schematic_mouse_move)
+        //     .mouseover(schematic_mouse_enter)
+        //     .mouseout(schematic_mouse_leave)
+        //     .mouseup(schematic_mouse_up)
+        //     .mousedown(schematic_mouse_down)
+        //     .dblclick(schematic_double_click)
+        //     .keydown(schematic_key_down);
+
+        $$(this.diagram.canvas).touch(schematic_touch);
+        $$(this.diagram.canvas).hold(schematic_hold);
+        $$(this.diagram.canvas).doubleTap(schematic_doubleTap);
+        $$(this.diagram.canvas).swipe(schematic_swipe);
+        $$(this.diagram.canvas).swiping(schematic_swiping);
+        $$(this.diagram.canvas).pinching(schematic_pinching);
+        $$(this.diagram.canvas).dragging(schematic_multi);
+
+        $('body').bind('touchmove', function(e){e.preventDefault()});
 
         this.toolbar = new jade.Toolbar(this.diagram);
 
@@ -156,6 +166,10 @@ jade_defs.schematic_view = function(jade) {
             this.toolbar.add_spacer();
         }
 
+        var touch_tools = ['#grid','#undo','#redo','#cut','#copy','#paste','#fliph','#flipv','#rotcw','#rotccw','#down','#up'];
+
+        var part_tools = ['#ground','#vdd','#port','#jumper','#memory','#text'];
+
         // add external tools
         var tools = parent.configuration.tools || [];
         for (var i = 0; i < schematic_tools.length; i += 1) {
@@ -163,11 +177,37 @@ jade_defs.schematic_view = function(jade) {
             if (tools.length > 0 && tools.indexOf(info[0]) == -1)
                 continue;  // skip tool if it's not on the list
             this.toolbar.add_tool(info[0], info[1], info[2], info[3], info[4]);
+            touch_tools.push('#'+ info[0]);
         }
 
         div.appendChild(this.toolbar.toolbar[0]);
 
+        function tool_touch(event) {
+            console.log(event);
+            var tool = event.target;
+            if (tool.enabled) {
+                console.log(tool.diagram.touch_event_coords(event));
+                tool.diagram.touch_event_coords(event); // so we can position pop-up window correctly
+                tool.callback(tool.diagram);
+            }
+
+            event.preventDefault();
+            return false;
+        }
+
+        function say_name() {
+            console.log('hi');
+        } 
+
         div.appendChild(this.diagram.canvas);
+
+        for(var i = 0; i < touch_tools.length; i++){
+            $$(touch_tools[i]).on("touch",tool_touch)
+        }
+        for(var i = 0; i < part_tools.length; i++){
+        
+        }
+
         var aspect = new jade.model.Aspect('untitled', null);
         this.diagram.set_aspect(aspect);
 
@@ -379,7 +419,12 @@ jade_defs.schematic_view = function(jade) {
         return false;
     }
 
+    function is_touch_device() {
+        return 'ontouchstart' in window || navigator.maxTouchPoints;
+    }
+
     function schematic_mouse_down(event) {
+        console.log("Am I a touch device: " + is_touch_device())
         var diagram = event.target.diagram;
         diagram.event_coords(event);
 
@@ -396,6 +441,133 @@ jade_defs.schematic_view = function(jade) {
             diagram.wire = [diagram.cursor_x, diagram.cursor_y, diagram.cursor_x, diagram.cursor_y];
         }
         else diagram.start_select(event.shiftKey);
+
+        event.preventDefault();
+        return false;
+    }
+
+    function schematic_touch(event){
+        console.log("touch event");
+        console.log(event);
+        var diagram = event.target.diagram;
+        diagram.touch_event_coords(event);
+
+        // see if user is trying to pan or zoom
+        if (diagram.pan_zoom()) return false;
+
+        return false;
+    }
+
+    function schematic_multi(event){
+        if(event.touch.touches.length>2){
+            console.log("multi event");
+            console.log(event.touch.touches.length);
+            console.log(event.touch.delta.x);
+            console.log(event.touch.delta.y); 
+            var diagram = event.target.diagram;
+            diagram.touch_pan(event.touch.delta.x, event.touch.delta.y);
+        }
+    }
+
+    function schematic_hold(event){
+        console.log("hold event");
+        return false;
+    }
+
+    function schematic_drag(event){
+        console.log("drag");
+        console.log(event);
+        return false;
+    }
+
+    function schematic_pinching(event){
+        console.log("pinching");
+        console.log(event.touch.delta);
+        var diagram = event.target.diagram;
+        diagram.touch_zoom(event.touch.delta);
+        return false;
+    }
+
+    function schematic_swipe(event){
+        console.log("swipe");
+        console.log(event);
+        var diagram = event.target.diagram;
+        diagram.swiping = false;
+        var diagram = event.target.diagram;
+
+        // drawing a new wire
+        if (diagram.wire) {
+            var r = diagram.wire;
+            diagram.wire = undefined;
+
+            if (r[0] != r[2] || r[1] != r[3]) {
+                // insert wire component
+                diagram.aspect.start_action();
+                var wire = diagram.aspect.add_wire(r[0], r[1], r[2], r[3], 0);
+                wire.selected = true;
+                diagram.aspect.end_action();
+                diagram.redraw_background();
+            }
+            else diagram.redraw();
+        }
+        else diagram.mouse_up(event.shiftKey);
+
+        event.preventDefault();
+        return false;
+    }
+
+    function schematic_swiping(event){
+        console.log("swiping")
+        var diagram = event.target.diagram;
+        diagram.touch_event_coords(event);
+        //mouse down
+        if(!diagram.swiping){
+            diagram.swiping = true;
+            // see if user is trying to pan or zoom
+            // if (diagram.pan_zoom()) return false;
+
+            // is mouse over a connection point?  If so, start dragging a wire
+            var dx = Math.abs(diagram.aspect_x - diagram.cursor_x);
+            var dy = Math.abs(diagram.aspect_y - diagram.cursor_y);
+            var cplist = diagram.aspect.connection_points[diagram.cursor_x + ',' + diagram.cursor_y];
+            if (!diagram.aspect.read_only() && dx <= jade.model.connection_point_radius && dy <= jade.model.connection_point_radius && cplist && !event.shiftKey) {
+                console.log("wire")
+                diagram.unselect_all(-1);
+                diagram.redraw_background();
+                diagram.wire = [diagram.cursor_x, diagram.cursor_y, diagram.cursor_x, diagram.cursor_y];
+            }
+            else diagram.start_select(event.shiftKey);
+
+            event.preventDefault();
+            return false;
+        }else{
+            //mousemove
+            if (diagram.wire) {
+                // update new wire end point
+                diagram.wire[2] = diagram.cursor_x;
+                diagram.wire[3] = diagram.cursor_y;
+                diagram.redraw();
+            }
+            else diagram.mouse_move();
+
+            event.preventDefault();
+            return false;
+        }
+        
+    }
+
+
+    function schematic_doubleTap(){
+        var diagram = event.target.diagram;
+        diagram.touch_event_coords(event);
+
+        if (diagram.aspect && !diagram.aspect.read_only()) {
+            // see if we double-clicked a component.  If so, edit it's properties
+            diagram.aspect.map_over_components(function(c) {
+                if (c.edit_properties(diagram, diagram.aspect_x, diagram.aspect_y)) return true;
+                return false;
+            });
+        }
 
         event.preventDefault();
         return false;

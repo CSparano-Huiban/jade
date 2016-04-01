@@ -52,6 +52,10 @@ jade_defs.top_level = function(jade) {
     var clipboards = {}; // clipboards for each editor type
 
     function Jade(owner) {
+        console.log('fi3jrn')
+        console.log($)
+        console.log('here')
+        console.log($$)
         owner.jade = this;
         this.jade = jade;
         this.parent = owner;
@@ -720,6 +724,7 @@ jade_defs.top_level = function(jade) {
     //////////////////////////////////////////////////////////////////////
 
     function Diagram(editor, class_name) {
+
         this.editor = editor;
         this.aspect = undefined;
 
@@ -767,6 +772,7 @@ jade_defs.top_level = function(jade) {
         this.select_rect = undefined;
         this.annotations = [];
         this.show_grid = true;
+        this.swiping = false;
 
         this.origin_x = 0;
         this.origin_y = 0;
@@ -846,8 +852,57 @@ jade_defs.top_level = function(jade) {
         }
     };
 
+    Diagram.prototype.touch_zoom = function(delta) {
+        var nscale = this.scale + delta/2000.0;
+
+        if (nscale < this.zoom_max && nscale > this.zoom_min) {
+            // keep center of view unchanged
+            this.origin_x += ($(this.canvas).width() / 2) * (1.0 / this.scale - 1.0 / nscale);
+            this.origin_y += ($(this.canvas).height() / 2) * (1.0 / this.scale - 1.0 / nscale);
+            this.scale = nscale;
+            this.redraw_background();
+        }
+    };
+
+    Diagram.prototype.touch_pan = function(delta_x, delta_y) {
+        
+        var temp_y = this.origin_y - delta_y/200.0;
+        if (temp_y > this.origin_min * this.grid && temp_y < this.origin_max * this.grid)
+            this.origin_y = temp_y;
+        
+        var temp_x = this.origin_x - delta_x/200.0;
+        if (temp_x > this.origin_min * this.grid && temp_x < this.origin_max * this.grid)
+            this.origin_x = temp_x;
+
+        this.redraw_background();
+    };
+
+    Diagram.prototype.touch_zoomin = function() {
+        var nscale = this.scale + 2;
+
+        if (nscale < this.zoom_max) {
+            // keep center of view unchanged
+            this.origin_x += ($(this.canvas).width() / 2) * (1.0 / this.scale - 1.0 / nscale);
+            this.origin_y += ($(this.canvas).height() / 2) * (1.0 / this.scale - 1.0 / nscale);
+            this.scale = nscale;
+            this.redraw_background();
+        }
+    };
+
     Diagram.prototype.zoomout = function() {
         var nscale = this.scale / this.zoom_factor;
+
+        if (nscale > this.zoom_min) {
+            // keep center of view unchanged
+            this.origin_x += (this.canvas.width / 2) * (1.0 / this.scale - 1.0 / nscale);
+            this.origin_y += (this.canvas.height / 2) * (1.0 / this.scale - 1.0 / nscale);
+            this.scale = nscale;
+            this.redraw_background();
+        }
+    };
+
+    Diagram.prototype.touch_zoomout = function() {
+        var nscale = this.scale - 2;
 
         if (nscale > this.zoom_min) {
             // keep center of view unchanged
@@ -882,7 +937,9 @@ jade_defs.top_level = function(jade) {
     };
 
     function diagram_toggle_grid(diagram) {
+        console.log('im in here');
         diagram.show_grid = !diagram.show_grid;
+        console.log(diagram.show_grid);
         diagram.redraw_background();
     }
 
@@ -1314,6 +1371,16 @@ jade_defs.top_level = function(jade) {
         this.cursor_y = this.on_grid(this.aspect_y);
     };
 
+    Diagram.prototype.touch_event_coords = function(event) {
+        var pos = $(this.canvas).offset();
+        this.mouse_x = event.touch.x - pos.left;
+        this.mouse_y = event.touch.y - pos.top;
+        this.aspect_x = this.mouse_x / this.scale + this.origin_x;
+        this.aspect_y = this.mouse_y / this.scale + this.origin_y;
+        this.cursor_x = this.on_grid(this.aspect_x);
+        this.cursor_y = this.on_grid(this.aspect_y);
+    };
+
     ///////////////////////////////////////////////////////////////////////////////
     //
     //  Event handling
@@ -1403,11 +1470,13 @@ jade_defs.top_level = function(jade) {
                 delta = this.canvas.height / (8 * this.scale);
                 if (sy > 0) delta = -delta;
                 temp = this.origin_y - delta;
+                console.log(delta)
                 if (temp > this.origin_min * this.grid && temp < this.origin_max * this.grid)
                     this.origin_y = temp;
             }
             else { // E or W
                 delta = this.canvas.width / (8 * this.scale);
+                console.log(delta)
                 if (sx < 0) delta = -delta;
                 temp = this.origin_x + delta;
                 if (temp > this.origin_min * this.grid && temp < this.origin_max * this.grid)
@@ -1660,8 +1729,26 @@ jade_defs.top_level = function(jade) {
             event.preventDefault();
             return false;
         });
+        dialog.find('#ok').on('touch',function (event) {
+            window_close(dialog[0].win);
+
+            // invoke the callback with the dialog contents as the argument.
+            // small delay allows browser to actually remove window beforehand
+            if (dialog[0].callback) setTimeout(function() {
+                dialog[0].callback();
+            }, 1);
+
+            event.preventDefault();
+            return false;
+        });
 
         dialog.find('#cancel').on('click',function (event) {
+            window_close(dialog[0].win);
+            event.preventDefault();
+            return false;
+        });
+
+        dialog.find('#cancel').on('touch',function (event) {
             window_close(dialog[0].win);
             event.preventDefault();
             return false;
@@ -1741,6 +1828,12 @@ jade_defs.top_level = function(jade) {
             return false;
         });
 
+        close_button.on('touch', function (event){
+            window_close(win[0]);
+            event.preventDefault();
+            return false;
+        });
+
         win.append($(content));
         content.win = win[0]; // so content can contact us
         $(content).toggleClass('jade-window-contents');
@@ -1803,6 +1896,7 @@ jade_defs.top_level = function(jade) {
 
     // capture mouse events in title bar of window
     function window_mouse_down(e) {
+        console.log("mousedownevent")
         var event = window.event || e;
         var doc = $(document).get(0);
         var win = event.target.win;
@@ -1884,18 +1978,20 @@ jade_defs.top_level = function(jade) {
 
     Toolbar.prototype.add_tool = function(tname, icon, tip, handler, enable_check) {
         var tool;
+        // var touch_tool
         if (icon.search('data:image') != -1) {
-            tool = $('<img draggable="false"></img>');
+            tool = $('<img draggable="false" id="'+tname+'"></img>');
             tool.attr('src',icon);
         }
         else {
-            tool = $('<button></button>').append(icon);
+            tool = $('<button id="'+tname+'"></button>').append(icon);
+
         }
         tool.addClass('jade-tool jade-tool-disabled');
         tool[0].enabled = false;
 
         // set up event processing
-        tool.mouseover(tool_enter).mouseout(tool_leave).click(tool_click);
+        // tool.mouseover(tool_enter).mouseout(tool_leave).click(tool_click);
 
         // add to toolbar
         tool[0].diagram = this.diagram;
@@ -1904,6 +2000,7 @@ jade_defs.top_level = function(jade) {
         tool[0].enable_check = enable_check;
         this.tools[tname] = tool;
         this.toolbar.append(tool);
+        
 
         return tool;
     };
@@ -1946,6 +2043,7 @@ jade_defs.top_level = function(jade) {
     // handle click on a tool
     function tool_click(event) {
         var tool = event.target;
+        console.log(event);
 
         if (tool.enabled) {
             tool.diagram.event_coords(event); // so we can position pop-up window correctly

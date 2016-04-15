@@ -54,7 +54,9 @@ jade_defs.schematic_view = function(jade) {
         $$(this.diagram.canvas).swipe(schematic_swipe);
         $$(this.diagram.canvas).swiping(schematic_swiping);
         $$(this.diagram.canvas).pinching(schematic_pinching);
+        $$(this.diagram.canvas).pinch(schematic_pinch);
         $$(this.diagram.canvas).dragging(schematic_multi);
+
 
         $('body').bind('touchmove', function(e){e.preventDefault()});
 
@@ -168,7 +170,7 @@ jade_defs.schematic_view = function(jade) {
 
         var touch_tools = ['#grid','#undo','#redo','#cut','#copy','#paste','#fliph','#flipv','#rotcw','#rotccw','#down','#up'];
 
-        var part_tools = ['#ground','#vdd','#port','#jumper','#memory','#text'];
+        var part_tools = ['ground','vdd','port','jumper','memory','text'];
 
         // add external tools
         var tools = parent.configuration.tools || [];
@@ -196,7 +198,7 @@ jade_defs.schematic_view = function(jade) {
         }
 
         function say_name() {
-            console.log('hi');
+            console.log('hi My name is say name');
         } 
 
         div.appendChild(this.diagram.canvas);
@@ -205,7 +207,7 @@ jade_defs.schematic_view = function(jade) {
             $$(touch_tools[i]).on("touch",tool_touch)
         }
         for(var i = 0; i < part_tools.length; i++){
-        
+            part_tool_touch("#"+part_tools[i], this, part_tools[i]);
         }
 
         var aspect = new jade.model.Aspect('untitled', null);
@@ -268,7 +270,7 @@ jade_defs.schematic_view = function(jade) {
 
     function part_tool(tool,editor,pname) {
         tool.off('click');   // different gesture for this tool
-        var part = new Part(editor);
+        var part = new Part(editor,pname);
         part.set_component(jade.model.make_component([pname,[0,0,0],{}]));
         tool.mousedown(function(event) {
             editor.diagram.new_part = part;
@@ -280,6 +282,33 @@ jade_defs.schematic_view = function(jade) {
         });
         tool.click(function(event) {
             event.originalEvent.preventDefault();  // consume event
+        });
+    }
+
+    function part_tool_touch(toolId,editor,pname) {
+        var part = new Part(editor, pname);
+        part.set_component(jade.model.make_component([pname,[0,0,0],{}]));
+        var currentDiagram = editor.diagram;
+
+        $$(toolId).touch(function(event) {
+
+            part.select(false);
+
+            // unselect everything else in the diagram, add part and select it
+            currentDiagram.unselect_all(-1);
+            currentDiagram.redraw_background();
+
+            currentDiagram.aspect.start_action();
+
+            var newPart = part.component.clone(0, 0);
+            newPart.add(currentDiagram.aspect); // add it to aspect
+            newPart.set_select(true);
+
+            currentDiagram.redraw();
+            currentDiagram.canvas.focus(); // capture key strokes
+
+            event.originalEvent.preventDefault();  // keep Chrome from selecting text
+            return false;
         });
     }
 
@@ -459,24 +488,16 @@ jade_defs.schematic_view = function(jade) {
     }
 
     function schematic_multi(event){
+        console.log("event = ",event);
+        console.log("detlta = ",event.touch.delta.x + " : " +event.touch.delta.y);
         if(event.touch.touches.length>2){
-            console.log("multi event");
-            console.log(event.touch.touches.length);
-            console.log(event.touch.delta.x);
-            console.log(event.touch.delta.y); 
             var diagram = event.target.diagram;
             diagram.touch_pan(event.touch.delta.x, event.touch.delta.y);
         }
     }
-
+ 
     function schematic_hold(event){
         console.log("hold event");
-        return false;
-    }
-
-    function schematic_drag(event){
-        console.log("drag");
-        console.log(event);
         return false;
     }
 
@@ -488,10 +509,20 @@ jade_defs.schematic_view = function(jade) {
         return false;
     }
 
+    function schematic_pinch(event){
+        console.log("pinching");
+        console.log(event.touch.delta);
+        var diagram = event.target.diagram;
+        diagram.zoom_delta = 0;
+        return false;
+    }
+
     function schematic_swipe(event){
         console.log("swipe");
         console.log(event);
         var diagram = event.target.diagram;
+        diagram.pan_delta_x = 0;
+        diagram.pan_delta_y = 0;
         diagram.swiping = false;
         var diagram = event.target.diagram;
 
@@ -1425,6 +1456,7 @@ jade_defs.schematic_view = function(jade) {
         this.diagram = editor.diagram;
         this.components = editor.components;
         this.parts_wanted = parts_wanted;
+        this.initialized = false;
 
         var bin = $('<div class="jade-xparts-bin"></div>');
         this.top_level = bin[0];
@@ -1464,11 +1496,12 @@ jade_defs.schematic_view = function(jade) {
 
         var current = '';
         var parts_list;
+        var this_parts_bin = this;
         $.each(plist,function (index,p) {
             // check cache, create Part if new module
             var part = parts_bin.parts[p];
             if (part === undefined) {
-                part = new Part(parts_bin.editor);
+                part = new Part(parts_bin.editor,p);
                 parts_bin.parts[p] = part;
                 part.set_component(jade.model.make_component([p, [0, 0, 0]]));
             }
@@ -1485,6 +1518,13 @@ jade_defs.schematic_view = function(jade) {
                 .mouseout(part_leave)
                 .mousedown(part_mouse_down)
                 .mouseup(part_mouse_up);
+
+            var striped_id = p.slice(1).replace("/","-")
+            
+            if(!this_parts_bin.initialized){
+                console.log($$('#'+striped_id));
+                part_touch(p, parts_bin.editor, part);
+            }
 
             // you can only edit parts in the parts bin if in hierarchical mode
             if (parts_bin.editor.jade.configuration.hierarchical && part.component.can_view()) {
@@ -1520,6 +1560,8 @@ jade_defs.schematic_view = function(jade) {
             parts_list.append(part.canvas);
         });
 
+        this.initialized = true;
+
         // bug?  nudge DOM's redraw so it will actually display the newly added part
         // without this, sometimes the parts contents aren't shown ?!
         bin.width(bin.width()-1);
@@ -1527,14 +1569,17 @@ jade_defs.schematic_view = function(jade) {
     };
 
     // one instance will be created for each part in the parts bin
-    function Part(editor) {
+    function Part(editor, pname) {
         this.editor = editor;
         this.diagram = editor.diagram;
         this.component = undefined;
         this.selected = false;
 
+        var striped_id = pname.slice(1).replace("/","-")
+        console.log(striped_id);
+
         // set up canvas
-        this.canvas = $('<canvas class="jade-xpart"></div>');
+        this.canvas = $('<canvas class="jade-xpart" id="'+ striped_id +'"></div>');
         this.canvas[0].part = this;
 
         // handle retina devices properly
@@ -1672,6 +1717,10 @@ jade_defs.schematic_view = function(jade) {
         return false;
     }
 
+    function we_are_here(event) {
+        console.log("we are here")
+    }
+
     function part_mouse_down(event) {
         var part = event.target.part;
 
@@ -1680,6 +1729,35 @@ jade_defs.schematic_view = function(jade) {
 
         event.originalEvent.preventDefault();  // keep Chrome from selecting text
         return false;
+    }
+
+    function part_touch(part_id, editor, part){
+        var currentDiagram = editor.diagram;
+        
+        var striped_id = part_id.slice(1).replace("/","-")
+
+
+        $$('#'+striped_id).touch(function(event) {
+            part.select(false);
+            console.log("currentDiagram  ::  ",currentDiagram);
+            // unselect everything else in the diagram, add part and select it
+            currentDiagram.unselect_all(-1);
+            currentDiagram.redraw_background();
+
+            currentDiagram.aspect.start_action();
+
+            var new_x = currentDiagram.origin_x + currentDiagram.canvas.width / (2 * currentDiagram.scale);
+            var new_y = currentDiagram.origin_y + currentDiagram.canvas.height / (2 * currentDiagram.scale);
+            var newPart = part.component.clone(new_x, new_y);
+            newPart.add(currentDiagram.aspect); // add it to aspect
+            newPart.set_select(true);
+
+            currentDiagram.redraw();
+            currentDiagram.canvas.focus(); // capture key strokes
+
+            event.originalEvent.preventDefault();  // keep Chrome from selecting text
+            return false;
+        });
     }
 
     function part_mouse_up(event) {

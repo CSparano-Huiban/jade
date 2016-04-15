@@ -822,11 +822,13 @@ jade_defs.model = function (jade) {
     };
 
     Component.prototype.clone = function(x, y) {
+        console.log("coords", x + "  "+ y);
         var c = make_component(this.json());
         c.name = undefined;     // don't clone name
         if (c.properties.name) c.properties.name.value = '';
         c.coords[0] = x; // override x and y
         c.coords[1] = y;
+        console.log("c", c);
         return c;
     };
 

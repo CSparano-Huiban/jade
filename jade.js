@@ -780,6 +780,9 @@ jade_defs.top_level = function(jade) {
         this.cursor_y = 0;
         this.unsel_bbox = [Infinity, Infinity, - Infinity, - Infinity];
         this.bbox = [0, 0, 0, 0];
+        this.pan_delta_y = 0;
+        this.pan_delta_x = 0;
+        this.zoom_delta = 0;
     }
 
     // fetch attributes from the tag that created us
@@ -853,7 +856,9 @@ jade_defs.top_level = function(jade) {
     };
 
     Diagram.prototype.touch_zoom = function(delta) {
-        var nscale = this.scale + delta/2000.0;
+        var newDelta = delta - this.zoom_delta;
+        this.zoom_delta = delta;
+        var nscale = this.scale + newDelta/100.0;
 
         if (nscale < this.zoom_max && nscale > this.zoom_min) {
             // keep center of view unchanged
@@ -865,12 +870,17 @@ jade_defs.top_level = function(jade) {
     };
 
     Diagram.prototype.touch_pan = function(delta_x, delta_y) {
-        
-        var temp_y = this.origin_y - delta_y/200.0;
+        var newDelta_x = delta_x - this.pan_delta_x;
+        this.pan_delta_x = delta_x;
+
+        var newDelta_y = delta_y - this.pan_delta_y;
+        this.pan_delta_y = delta_y;
+
+        var temp_y = this.origin_y - newDelta_y/5.0;
         if (temp_y > this.origin_min * this.grid && temp_y < this.origin_max * this.grid)
             this.origin_y = temp_y;
         
-        var temp_x = this.origin_x - delta_x/200.0;
+        var temp_x = this.origin_x - newDelta_x/5.0;
         if (temp_x > this.origin_min * this.grid && temp_x < this.origin_max * this.grid)
             this.origin_x = temp_x;
 

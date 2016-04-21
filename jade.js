@@ -52,10 +52,6 @@ jade_defs.top_level = function(jade) {
     var clipboards = {}; // clipboards for each editor type
 
     function Jade(owner) {
-        console.log('fi3jrn')
-        console.log($)
-        console.log('here')
-        console.log($$)
         owner.jade = this;
         this.jade = jade;
         this.parent = owner;
@@ -947,9 +943,7 @@ jade_defs.top_level = function(jade) {
     };
 
     function diagram_toggle_grid(diagram) {
-        console.log('im in here');
         diagram.show_grid = !diagram.show_grid;
-        console.log(diagram.show_grid);
         diagram.redraw_background();
     }
 
@@ -1480,13 +1474,11 @@ jade_defs.top_level = function(jade) {
                 delta = this.canvas.height / (8 * this.scale);
                 if (sy > 0) delta = -delta;
                 temp = this.origin_y - delta;
-                console.log(delta)
                 if (temp > this.origin_min * this.grid && temp < this.origin_max * this.grid)
                     this.origin_y = temp;
             }
             else { // E or W
                 delta = this.canvas.width / (8 * this.scale);
-                console.log(delta)
                 if (sx < 0) delta = -delta;
                 temp = this.origin_x + delta;
                 if (temp > this.origin_min * this.grid && temp < this.origin_max * this.grid)
@@ -1906,7 +1898,6 @@ jade_defs.top_level = function(jade) {
 
     // capture mouse events in title bar of window
     function window_mouse_down(e) {
-        console.log("mousedownevent")
         var event = window.event || e;
         var doc = $(document).get(0);
         var win = event.target.win;
@@ -2053,7 +2044,6 @@ jade_defs.top_level = function(jade) {
     // handle click on a tool
     function tool_click(event) {
         var tool = event.target;
-        console.log(event);
 
         if (tool.enabled) {
             tool.diagram.event_coords(event); // so we can position pop-up window correctly

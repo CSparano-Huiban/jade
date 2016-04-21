@@ -185,10 +185,8 @@ jade_defs.schematic_view = function(jade) {
         div.appendChild(this.toolbar.toolbar[0]);
 
         function tool_touch(event) {
-            console.log(event);
             var tool = event.target;
             if (tool.enabled) {
-                console.log(tool.diagram.touch_event_coords(event));
                 tool.diagram.touch_event_coords(event); // so we can position pop-up window correctly
                 tool.callback(tool.diagram);
             }
@@ -196,10 +194,6 @@ jade_defs.schematic_view = function(jade) {
             event.preventDefault();
             return false;
         }
-
-        function say_name() {
-            console.log('hi My name is say name');
-        } 
 
         div.appendChild(this.diagram.canvas);
 
@@ -459,7 +453,6 @@ jade_defs.schematic_view = function(jade) {
     }
 
     function schematic_mouse_down(event) {
-        console.log("Am I a touch device: " + is_touch_device())
         var diagram = event.target.diagram;
         diagram.event_coords(event);
 
@@ -482,8 +475,6 @@ jade_defs.schematic_view = function(jade) {
     }
 
     function schematic_touch(event){
-        console.log("touch event");
-        console.log(event);
         var diagram = event.target.diagram;
         diagram.touch_event_coords(event);
 
@@ -498,8 +489,6 @@ jade_defs.schematic_view = function(jade) {
     }
 
     function schematic_multi(event){
-        console.log("event = ",event);
-        console.log("detlta = ",event.touch.delta.x + " : " +event.touch.delta.y);
         if(event.touch.touches.length>2){
             var diagram = event.target.diagram;
             diagram.touch_pan(event.touch.delta.x, event.touch.delta.y);
@@ -507,29 +496,22 @@ jade_defs.schematic_view = function(jade) {
     }
  
     function schematic_hold(event){
-        console.log("hold event");
         return false;
     }
 
     function schematic_pinching(event){
-        console.log("pinching");
-        console.log(event.touch.delta);
         var diagram = event.target.diagram;
         diagram.touch_zoom(event.touch.delta);
         return false;
     }
 
     function schematic_pinch(event){
-        console.log("pinching");
-        console.log(event.touch.delta);
         var diagram = event.target.diagram;
         diagram.zoom_delta = 0;
         return false;
     }
 
     function schematic_swipe(event){
-        console.log("swipe");
-        console.log(event);
         var diagram = event.target.diagram;
         diagram.pan_delta_x = 0;
         diagram.pan_delta_y = 0;
@@ -558,7 +540,6 @@ jade_defs.schematic_view = function(jade) {
     }
 
     function schematic_swiping(event){
-        console.log("swiping")
         var diagram = event.target.diagram;
         diagram.touch_event_coords(event);
         //mouse down
@@ -572,7 +553,6 @@ jade_defs.schematic_view = function(jade) {
             var dy = Math.abs(diagram.aspect_y - diagram.cursor_y);
             var cplist = diagram.aspect.connection_points[diagram.cursor_x + ',' + diagram.cursor_y];
             if (!diagram.aspect.read_only() && dx <= jade.model.connection_point_radius && dy <= jade.model.connection_point_radius && cplist && !event.shiftKey) {
-                console.log("wire")
                 diagram.unselect_all(-1);
                 diagram.redraw_background();
                 diagram.wire = [diagram.cursor_x, diagram.cursor_y, diagram.cursor_x, diagram.cursor_y];
@@ -1536,7 +1516,6 @@ jade_defs.schematic_view = function(jade) {
             var striped_id = p.slice(1).replace("/","-")
             
             if(!this_parts_bin.initialized){
-                console.log($$('#'+striped_id));
                 part_touch(p, parts_bin.editor, part);
             }
 
@@ -1590,7 +1569,6 @@ jade_defs.schematic_view = function(jade) {
         this.selected = false;
 
         var striped_id = pname.slice(1).replace("/","-")
-        console.log(striped_id);
 
         // set up canvas
         this.canvas = $('<canvas class="jade-xpart" id="'+ striped_id +'"></div>');
@@ -1731,10 +1709,6 @@ jade_defs.schematic_view = function(jade) {
         return false;
     }
 
-    function we_are_here(event) {
-        console.log("we are here")
-    }
-
     function part_mouse_down(event) {
         var part = event.target.part;
 
@@ -1753,7 +1727,6 @@ jade_defs.schematic_view = function(jade) {
 
         $$('#'+striped_id).touch(function(event) {
             part.select(false);
-            console.log("currentDiagram  ::  ",currentDiagram);
             // unselect everything else in the diagram, add part and select it
             currentDiagram.unselect_all(-1);
             currentDiagram.redraw_background();

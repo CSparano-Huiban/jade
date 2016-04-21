@@ -39,14 +39,14 @@ jade_defs.schematic_view = function(jade) {
         this.hierarchy_stack = []; // remember path when traveling up/down hierarchy
 
         // register event handlers
-        // $(this.diagram.canvas)
-        //     .mousemove(schematic_mouse_move)
-        //     .mouseover(schematic_mouse_enter)
-        //     .mouseout(schematic_mouse_leave)
-        //     .mouseup(schematic_mouse_up)
-        //     .mousedown(schematic_mouse_down)
-        //     .dblclick(schematic_double_click)
-        //     .keydown(schematic_key_down);
+        $(this.diagram.canvas)
+            .mousemove(schematic_mouse_move)
+            .mouseover(schematic_mouse_enter)
+            .mouseout(schematic_mouse_leave)
+            .mouseup(schematic_mouse_up)
+            .mousedown(schematic_mouse_down)
+            .dblclick(schematic_double_click)
+            .keydown(schematic_key_down);
 
         $$(this.diagram.canvas).touch(schematic_touch);
         $$(this.diagram.canvas).hold(schematic_hold);
@@ -218,6 +218,8 @@ jade_defs.schematic_view = function(jade) {
             this.parts_bin = new PartsBin(this,parent.configuration.parts);
             div.appendChild(this.parts_bin.top_level);
 
+            $$(".jade-xparts-bin").swiping(parts_bin_swiping);
+
             // set up resizer
             this.resizer = $('<div class="jade-xparts-resize"></div>');
             var sch = this;
@@ -300,7 +302,11 @@ jade_defs.schematic_view = function(jade) {
 
             currentDiagram.aspect.start_action();
 
-            var newPart = part.component.clone(0, 0);
+            //BookMark1
+            var new_x = currentDiagram.origin_x + currentDiagram.canvas.width / (2 * currentDiagram.scale);
+            var new_y = currentDiagram.origin_y + currentDiagram.canvas.height / (2 * currentDiagram.scale);
+
+            var newPart = part.component.clone(currentDiagram.on_grid(new_x), currentDiagram.on_grid(new_y));
             newPart.add(currentDiagram.aspect); // add it to aspect
             newPart.set_select(true);
 
@@ -483,6 +489,10 @@ jade_defs.schematic_view = function(jade) {
 
         // see if user is trying to pan or zoom
         if (diagram.pan_zoom()) return false;
+
+        //Put select here
+        diagram.unselect_all(-1);
+        diagram.redraw_background();
 
         return false;
     }
@@ -1470,6 +1480,10 @@ jade_defs.schematic_view = function(jade) {
         e.height(h);
     };
 
+    function parts_bin_swiping(event){
+        $(".jade-xparts-bin").scroll();
+    }
+
     PartsBin.prototype.show = function() {
         var parts_bin = this;
         var bin = $(this.top_level);
@@ -1746,9 +1760,11 @@ jade_defs.schematic_view = function(jade) {
 
             currentDiagram.aspect.start_action();
 
+            //BookMark2
             var new_x = currentDiagram.origin_x + currentDiagram.canvas.width / (2 * currentDiagram.scale);
             var new_y = currentDiagram.origin_y + currentDiagram.canvas.height / (2 * currentDiagram.scale);
-            var newPart = part.component.clone(new_x, new_y);
+
+            var newPart = part.component.clone(currentDiagram.on_grid(new_x), currentDiagram.on_grid(new_y));
             newPart.add(currentDiagram.aspect); // add it to aspect
             newPart.set_select(true);
 
